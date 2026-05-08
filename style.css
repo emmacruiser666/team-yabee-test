@@ -98,31 +98,38 @@ text-transform:none;
 
 .update-status{
 margin-top:24px;
-padding:14px 0 0;
-border-top:1px solid var(--line);
-font-size:11px;
-color:var(--muted);
+padding:12px;
+border:1px solid var(--line);
+background:#f4f1eb;
+font-size:10px;
+color:var(--text);
 text-transform:none;
 letter-spacing:0.03em;
-line-height:1.5;
+line-height:1.4;
+border-radius:8px;
+box-shadow:0 8px 20px rgba(31, 41, 51, 0.06);
 }
 
 .update-copy{
-margin-bottom:10px;
+margin-bottom:8px;
+font-size:10px;
+font-weight:500;
+color:var(--text);
 }
 
 .update-action{
 border:1px solid var(--primary);
-padding:10px 12px;
+padding:8px 10px;
 border-radius:var(--radius);
 cursor:pointer;
 font-weight:500;
 background:var(--primary);
 color:#fff;
 transition:background .2s, color .2s, border-color .2s;
-letter-spacing:.06em;
+letter-spacing:.05em;
 text-transform:uppercase;
 width:100%;
+font-size:10px;
 }
 
 .update-action:hover{
@@ -130,7 +137,7 @@ background:transparent;
 color:var(--primary);
 }
 
-.update-status.yellow{color:#ca8a04;}
+.update-status.yellow{color:var(--text);}
 .update-status.red{color:#dc2626;}
 .update-status.green{color:#15803d;}
 
