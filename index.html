@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="app-version" content="3.1">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Team Yabee Grooming Dashboard</title>
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+<aside class="sidebar">
+<div class="brand">
+<div class="logo">
+<img src="https://alloftrl.us.to/tyk/_assets/media/32492aa48383cb1971b62dd63e1cc990.png" alt="Team Yabee Grooming">
+</div>
+<div>
+<h2>Team Yabee Grooming</h2>
+<p class="muted">DASHBOARD</p>
+</div>
+</div>
+
+<div class="nav">
+<button class="tab active" data-tab="dashboard">MAIN DASHBOARD</button>
+<button class="tab" data-tab="pets">ALL PETS</button>
+<button class="tab" data-tab="grooming">GROOMING</button>
+<button class="tab" data-tab="hotel">HOTEL</button>
+</div>
+
+<div class="sidebar-bottom">
+<div id="updateStatus" class="update-status" hidden></div>
+<div id="backupStatus" class="backup-status"></div>
+<p class="sidebar-version">Version 3.1</p>
+</div>
+</aside>
+
+<main class="main">
+
+<div class="top">
+<div class="actions">
+<button class="btn" onclick="openGroom()">NEW GROOM</button>
+<button class="btn" onclick="openHotel()">CHECK-IN HOTEL</button>
+<button class="btn light" onclick="exportData()">EXPORT BACKUP</button>
+<button class="btn light" onclick="document.getElementById('importFile').click()">IMPORT BACKUP</button>
+<input type="file" hidden id="importFile" accept=".json">
+</div>
+</div>
+
+<section class="section active" id="dashboard">
+<div class="stats-stack">
+  <div class="grid stats-grid-2">
+    <div class="card stat-card"><div class="muted">GROOMING PETS TODAY</div><div class="stat" id="statGroomToday">0</div></div>
+    <div class="card stat-card"><div class="muted">HOTEL PETS TODAY</div><div class="stat" id="statHotelToday">0</div></div>
+  </div>
+  <div class="grid stats-grid-3">
+    <div class="card stat-card stat-card--small"><div class="muted">TOTAL PETS</div><div class="stat" id="statPets">0</div></div>
+    <div class="card stat-card stat-card--small"><div class="muted">GROOMING PETS</div><div class="stat" id="statGroom">0</div></div>
+    <div class="card stat-card stat-card--small"><div class="muted">HOTEL PETS</div><div class="stat" id="statHotel">0</div></div>
+  </div>
+</div>
+</section>
+
+<section class="section" id="pets">
+<input class="search" id="petSearch" placeholder="SEARCH PETS...">
+<div class="list" id="petsList"></div>
+</section>
+
+<section class="section" id="grooming">
+<input class="search" id="groomSearch" placeholder="SEARCH GROOMING...">
+<div class="list" id="groomList"></div>
+</section>
+
+<section class="section" id="hotel">
+<input class="search" id="hotelSearch" placeholder="SEARCH HOTEL...">
+<div class="list" id="hotelList"></div>
+</section>
+
+</main>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-box" id="modalContent"></div>
+</div>
+
+<div id="saveNotification">AUTO-SAVED</div>
+
+<script src="script.js"></script>
+</body>
+</html>
