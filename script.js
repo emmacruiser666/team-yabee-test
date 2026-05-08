@@ -1,10 +1,8 @@
 const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content?.trim() || "0.0";
 const VERSION_CHECK_INTERVAL = 10 * 60 * 1000;
-const VERSION_REFRESH_DELAY = 15000;
 let autoSaveInterval;
 let saveNotificationTimer;
 let updateCheckInterval;
-let updateRefreshTimer;
 let appReadyForSaveNotifications = false;
 
 function getBackupFilename(prefix) {
@@ -59,14 +57,6 @@ function compareVersions(a, b) {
     return 0;
 }
 
-function isRefreshSafeNow() {
-    const modalEl = document.getElementById("modal");
-    const modalOpen = modalEl?.classList.contains("show");
-    const activeTag = document.activeElement?.tagName || "";
-    const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(activeTag);
-    return !modalOpen && !typing;
-}
-
 function setUpdateStatus(message, tone = "") {
     const statusEl = document.getElementById("updateStatus");
     if (!statusEl) return;
@@ -74,6 +64,7 @@ function setUpdateStatus(message, tone = "") {
         statusEl.hidden = true;
         statusEl.textContent = "";
         statusEl.className = "update-status";
+        statusEl.innerHTML = "";
         return;
     }
     statusEl.hidden = false;
@@ -87,16 +78,19 @@ function syncSidebarVersion() {
     versionEl.textContent = "Version " + APP_VERSION;
 }
 
-function scheduleAppRefresh(message, delayMs = VERSION_REFRESH_DELAY) {
-    clearTimeout(updateRefreshTimer);
-    setUpdateStatus(message, "yellow");
-    updateRefreshTimer = setTimeout(() => {
-        if (!isRefreshSafeNow()) {
-            scheduleAppRefresh(message, VERSION_REFRESH_DELAY);
-            return;
-        }
-        location.reload();
-    }, delayMs);
+function showUpdateAction(remoteVersion) {
+    const statusEl = document.getElementById("updateStatus");
+    if (!statusEl) return;
+    statusEl.hidden = false;
+    statusEl.className = "update-status yellow";
+    statusEl.innerHTML = `
+        <div class="update-copy">New version ${remoteVersion} available</div>
+        <button class="update-action" type="button" onclick="reloadAppForUpdate()">Update now</button>
+    `;
+}
+
+function reloadAppForUpdate() {
+    location.reload();
 }
 
 async function checkForAppUpdate() {
@@ -125,7 +119,7 @@ async function checkForAppUpdate() {
 
         if (!remoteVersion) return;
         if (compareVersions(remoteVersion, currentVersion) > 0) {
-            scheduleAppRefresh("New version " + remoteVersion + " detected. Refreshing soon...");
+            showUpdateAction(remoteVersion);
         }
     } catch {
         return;

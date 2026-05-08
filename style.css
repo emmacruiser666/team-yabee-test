@@ -107,6 +107,29 @@ letter-spacing:0.03em;
 line-height:1.5;
 }
 
+.update-copy{
+margin-bottom:10px;
+}
+
+.update-action{
+border:1px solid var(--primary);
+padding:10px 12px;
+border-radius:var(--radius);
+cursor:pointer;
+font-weight:500;
+background:var(--primary);
+color:#fff;
+transition:background .2s, color .2s, border-color .2s;
+letter-spacing:.06em;
+text-transform:uppercase;
+width:100%;
+}
+
+.update-action:hover{
+background:transparent;
+color:var(--primary);
+}
+
 .update-status.yellow{color:#ca8a04;}
 .update-status.red{color:#dc2626;}
 .update-status.green{color:#15803d;}
