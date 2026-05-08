@@ -1,4 +1,4 @@
-const APP_VERSION = "3.1";
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content?.trim() || "0.0";
 const VERSION_CHECK_INTERVAL = 10 * 60 * 1000;
 const VERSION_REFRESH_DELAY = 15000;
 let autoSaveInterval;
@@ -79,6 +79,12 @@ function setUpdateStatus(message, tone = "") {
     statusEl.hidden = false;
     statusEl.textContent = message;
     statusEl.className = "update-status " + tone;
+}
+
+function syncSidebarVersion() {
+    const versionEl = document.getElementById("sidebarVersion");
+    if (!versionEl) return;
+    versionEl.textContent = "Version " + APP_VERSION;
 }
 
 function scheduleAppRefresh(message, delayMs = VERSION_REFRESH_DELAY) {
@@ -1234,6 +1240,7 @@ hotelSearch.oninput = renderHotel;
 
 startUpdateWatcher();
 startAutoSave();
+syncSidebarVersion();
 render();
 updateBackupStatus();
 appReadyForSaveNotifications = true;
