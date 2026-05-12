@@ -1,8 +1,11 @@
 const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content?.trim() || "0.0";
 const VERSION_CHECK_INTERVAL = 10 * 60 * 1000;
+const UPDATE_NOTIFICATION_GRACE_MS = 60 * 1000;
 let autoSaveInterval;
 let saveNotificationTimer;
 let updateCheckInterval;
+let pendingUpdateVersion = "";
+let pendingUpdateTimer = null;
 let appReadyForSaveNotifications = false;
 
 function getBackupFilename(prefix) {
@@ -139,6 +142,35 @@ function showUpdateAction(remoteVersion) {
     `;
 }
 
+function queueDelayedUpdateAction(remoteVersion) {
+    if (!remoteVersion) return;
+    if (pendingUpdateVersion === remoteVersion && pendingUpdateTimer) return;
+
+    pendingUpdateVersion = remoteVersion;
+    clearTimeout(pendingUpdateTimer);
+    pendingUpdateTimer = setTimeout(async () => {
+        pendingUpdateTimer = null;
+        try {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set("__versionCheck", String(Date.now()));
+            const res = await fetch(currentUrl.toString(), { cache: "no-store" });
+            if (!res.ok) return;
+
+            const html = await res.text();
+            const metaLine = html.split("\n").find((line) => line.includes('name="app-version"'));
+            if (!metaLine) return;
+
+            const parts = metaLine.split('content="');
+            const confirmedVersion = parts[1] ? parts[1].split('"')[0].trim() : "";
+            if (confirmedVersion === remoteVersion && compareVersions(confirmedVersion, APP_VERSION) > 0) {
+                showUpdateAction(confirmedVersion);
+            }
+        } catch {
+            return;
+        }
+    }, UPDATE_NOTIFICATION_GRACE_MS);
+}
+
 function exportBackupForUpdate() {
     saveDB();
     downloadBackup(getBackupFilename("team-yabee-update-backup"), buildBackupData());
@@ -156,7 +188,7 @@ function reloadAppForUpdate() {
 
 window.reloadAppForUpdate = reloadAppForUpdate;
 
-async function checkForAppUpdate() {
+async function checkForAppUpdate(source = "manual") {
     const currentVersion = APP_VERSION;
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set("__versionCheck", String(Date.now()));
@@ -182,20 +214,27 @@ async function checkForAppUpdate() {
 
         if (!remoteVersion) return;
         if (compareVersions(remoteVersion, currentVersion) > 0) {
-            showUpdateAction(remoteVersion);
+            if (source === "poll") {
+                clearTimeout(pendingUpdateTimer);
+                pendingUpdateTimer = null;
+                pendingUpdateVersion = remoteVersion;
+                showUpdateAction(remoteVersion);
+            } else {
+                queueDelayedUpdateAction(remoteVersion);
+            }
         }
     } catch {
         return;
     }
 }
 function startUpdateWatcher() {
-    checkForAppUpdate();
+    checkForAppUpdate("startup");
     if (updateCheckInterval) clearInterval(updateCheckInterval);
-    updateCheckInterval = setInterval(checkForAppUpdate, VERSION_CHECK_INTERVAL);
+    updateCheckInterval = setInterval(() => checkForAppUpdate("poll"), VERSION_CHECK_INTERVAL);
 
-    window.addEventListener("focus", checkForAppUpdate);
+    window.addEventListener("focus", () => checkForAppUpdate("focus"));
     document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) checkForAppUpdate();
+        if (!document.hidden) checkForAppUpdate("visibility");
     });
 }
 

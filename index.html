@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-version" content="3.3">
+<meta name="app-version" content="3.2.1">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Team Yabee Grooming Dashboard</title>
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css" id="appStylesheet">
 </head>
 
 <body>
@@ -90,6 +90,16 @@
 <input type="file" hidden id="importFile" accept=".json">
 <div id="saveNotification">AUTO-SAVED</div>
 
-<script src="script.js"></script>
+<script>
+(() => {
+  const version = document.querySelector('meta[name="app-version"]')?.content?.trim() || Date.now().toString();
+  const stylesheet = document.getElementById('appStylesheet');
+  if (stylesheet) stylesheet.href = `style.css?v=${encodeURIComponent(version)}`;
+
+  const script = document.createElement('script');
+  script.src = `script.js?v=${encodeURIComponent(version)}`;
+  document.body.appendChild(script);
+})();
+</script>
 </body>
 </html>
