@@ -73,9 +73,49 @@ function setUpdateStatus(message, tone = "") {
 }
 
 function syncSidebarVersion() {
-    const versionEl = document.getElementById("sidebarVersion");
-    if (!versionEl) return;
-    versionEl.textContent = "Version " + APP_VERSION;
+    return APP_VERSION;
+}
+
+function closeModal() {
+    modal.classList.remove("show");
+    const toggle = document.getElementById("settingsToggle");
+    if (toggle) {
+        toggle.classList.remove("active");
+        toggle.setAttribute("aria-expanded", "false");
+    }
+}
+
+function setActiveSection(sectionId) {
+    document.querySelectorAll(".tab").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tab === sectionId);
+    });
+    document.querySelectorAll(".section").forEach((section) => {
+        section.classList.toggle("active", section.id === sectionId);
+    });
+}
+
+function toggleSettingsMenu() {
+    const toggle = document.getElementById("settingsToggle");
+    if (!toggle) return;
+    const settingsOpen = toggle.getAttribute("aria-expanded") === "true";
+    if (settingsOpen) {
+        closeModal();
+        return;
+    }
+    closeModal();
+    toggle.classList.add("active");
+    toggle.setAttribute("aria-expanded", "true");
+    openModal(`
+    <div class="settings-modal">
+    <h2>Settings</h2>
+    <div class="settings-row">
+    <span class="settings-label">Version</span>
+    <span class="settings-value">${syncSidebarVersion()}</span>
+    </div>
+    <button class="settings-action" type="button" onclick="exportData()">EXPORT BACKUP</button>
+    <button class="settings-action" type="button" onclick="document.getElementById('importFile').click()">IMPORT BACKUP</button>
+    </div>
+    `);
 }
 
 function showUpdateAction(remoteVersion) {
@@ -89,8 +129,19 @@ function showUpdateAction(remoteVersion) {
     `;
 }
 
+function exportBackupForUpdate() {
+    saveDB();
+    downloadBackup(getBackupFilename("team-yabee-update-backup"), buildBackupData());
+
+    lastExportTime = new Date();
+    localStorage.setItem("lastExportTime", lastExportTime.toISOString());
+    updateBackupStatus();
+}
+
 function reloadAppForUpdate() {
-    location.reload();
+    exportBackupForUpdate();
+    showSaveNotification("Backup exported. Updating app...");
+    setTimeout(() => location.reload(), 1200);
 }
 
 async function checkForAppUpdate() {
@@ -468,33 +519,28 @@ function toggleMultiPetDetails(btn){
 function updateBackupStatus() {
     const statusEl = document.getElementById("backupStatus");
     if (!lastExportTime) {
-        statusEl.innerHTML = `<span class="time" style="color:#64748b;">No backup yet</span>`;
+        statusEl.innerHTML = `Last backup: <span class="time">No backup yet</span>`;
         statusEl.className = "backup-status";
         return;
     }
     const now = new Date();
     const diffMs = now - lastExportTime;
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    let colorClass = "green";
     let text = `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-    if (diffHours >= 24) colorClass = "red";
-    else if (diffHours >= 4) colorClass = "yellow";
     statusEl.innerHTML = `Last backup: <span class="time">${text}</span>`;
-    statusEl.className = `backup-status ${colorClass}`;
+    statusEl.className = "backup-status";
 }
 
 /* tabs */
 document.querySelectorAll(".tab").forEach(btn=>{
 btn.onclick=()=>{
-document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-btn.classList.add("active");
-document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-document.getElementById(btn.dataset.tab).classList.add("active");
+closeModal();
+setActiveSection(btn.dataset.tab);
 };
 });
 
 modal.onclick=(e)=>{
-if(e.target.id==="modal") modal.classList.remove("show");
+if(e.target.id==="modal") closeModal();
 };
 
 function openModal(html){
@@ -1188,12 +1234,7 @@ alert("Multiple grooming pets saved successfully.");
 
 /* Backup import/export */
 function exportData(){
-    saveDB();
-    downloadBackup(getBackupFilename("team-yabee-backup"), buildBackupData());
-
-    lastExportTime = new Date();
-    localStorage.setItem("lastExportTime", lastExportTime.toISOString());
-    updateBackupStatus();
+    exportBackupForUpdate();
     showSaveNotification("Backup exported");
 }
 
