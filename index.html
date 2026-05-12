@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-version" content="3.1">
+<meta name="app-version" content="3.2">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Team Yabee Grooming Dashboard</title>
 
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0">
 <link rel="stylesheet" href="style.css">
 </head>
 
@@ -34,19 +35,19 @@
 <div class="sidebar-bottom">
 <div id="updateStatus" class="update-status" hidden></div>
 <div id="backupStatus" class="backup-status"></div>
-<p class="sidebar-version" id="sidebarVersion">Version</p>
+<button class="settings-toggle" id="settingsToggle" type="button" aria-expanded="false" onclick="toggleSettingsMenu()">
+<span class="material-symbols-outlined settings-icon" aria-hidden="true">settings</span>
+<span>SETTINGS</span>
+</button>
 </div>
 </aside>
 
 <main class="main">
 
-<div class="top">
+<div class="top" id="topBar">
 <div class="actions">
-<button class="btn" onclick="openGroom()">NEW GROOM</button>
-<button class="btn" onclick="openHotel()">CHECK-IN HOTEL</button>
-<button class="btn light" onclick="exportData()">EXPORT BACKUP</button>
-<button class="btn light" onclick="document.getElementById('importFile').click()">IMPORT BACKUP</button>
-<input type="file" hidden id="importFile" accept=".json">
+<button class="btn action-wide" onclick="openGroom()"><span class="action-plus">+</span><span class="action-label">GROOM</span></button>
+<button class="btn action-wide" onclick="openHotel()"><span class="action-plus">+</span><span class="action-label">HOTEL</span></button>
 </div>
 </div>
 
@@ -86,6 +87,7 @@
 <div class="modal-box" id="modalContent"></div>
 </div>
 
+<input type="file" hidden id="importFile" accept=".json">
 <div id="saveNotification">AUTO-SAVED</div>
 
 <script src="script.js"></script>
