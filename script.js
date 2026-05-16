@@ -1,11 +1,8 @@
 const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content?.trim() || "0.0";
 const VERSION_CHECK_INTERVAL = 10 * 60 * 1000;
-const UPDATE_NOTIFICATION_GRACE_MS = 60 * 1000;
 let autoSaveInterval;
 let saveNotificationTimer;
 let updateCheckInterval;
-let pendingUpdateVersion = "";
-let pendingUpdateTimer = null;
 let appReadyForSaveNotifications = false;
 
 function getBackupFilename(prefix) {
@@ -88,14 +85,6 @@ function closeModal() {
     }
 }
 
-function blockManualRefresh(event) {
-    const isMacRefresh = event.metaKey && event.key.toLowerCase() === "r";
-    const isWindowsRefresh = event.ctrlKey && event.key.toLowerCase() === "r";
-    const isFunctionRefresh = event.key === "F5";
-    if (!isMacRefresh && !isWindowsRefresh && !isFunctionRefresh) return;
-    event.preventDefault();
-}
-
 function setActiveSection(sectionId) {
     document.querySelectorAll(".tab").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.tab === sectionId);
@@ -142,35 +131,6 @@ function showUpdateAction(remoteVersion) {
     `;
 }
 
-function queueDelayedUpdateAction(remoteVersion) {
-    if (!remoteVersion) return;
-    if (pendingUpdateVersion === remoteVersion && pendingUpdateTimer) return;
-
-    pendingUpdateVersion = remoteVersion;
-    clearTimeout(pendingUpdateTimer);
-    pendingUpdateTimer = setTimeout(async () => {
-        pendingUpdateTimer = null;
-        try {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set("__versionCheck", String(Date.now()));
-            const res = await fetch(currentUrl.toString(), { cache: "no-store" });
-            if (!res.ok) return;
-
-            const html = await res.text();
-            const metaLine = html.split("\n").find((line) => line.includes('name="app-version"'));
-            if (!metaLine) return;
-
-            const parts = metaLine.split('content="');
-            const confirmedVersion = parts[1] ? parts[1].split('"')[0].trim() : "";
-            if (confirmedVersion === remoteVersion && compareVersions(confirmedVersion, APP_VERSION) > 0) {
-                showUpdateAction(confirmedVersion);
-            }
-        } catch {
-            return;
-        }
-    }, UPDATE_NOTIFICATION_GRACE_MS);
-}
-
 function exportBackupForUpdate() {
     saveDB();
     downloadBackup(getBackupFilename("team-yabee-update-backup"), buildBackupData());
@@ -188,7 +148,7 @@ function reloadAppForUpdate() {
 
 window.reloadAppForUpdate = reloadAppForUpdate;
 
-async function checkForAppUpdate(source = "manual") {
+async function checkForAppUpdate() {
     const currentVersion = APP_VERSION;
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set("__versionCheck", String(Date.now()));
@@ -214,28 +174,16 @@ async function checkForAppUpdate(source = "manual") {
 
         if (!remoteVersion) return;
         if (compareVersions(remoteVersion, currentVersion) > 0) {
-            if (source === "poll") {
-                clearTimeout(pendingUpdateTimer);
-                pendingUpdateTimer = null;
-                pendingUpdateVersion = remoteVersion;
-                showUpdateAction(remoteVersion);
-            } else {
-                queueDelayedUpdateAction(remoteVersion);
-            }
+            showUpdateAction(remoteVersion);
         }
     } catch {
         return;
     }
 }
 function startUpdateWatcher() {
-    checkForAppUpdate("startup");
+    checkForAppUpdate();
     if (updateCheckInterval) clearInterval(updateCheckInterval);
-    updateCheckInterval = setInterval(() => checkForAppUpdate("poll"), VERSION_CHECK_INTERVAL);
-
-    window.addEventListener("focus", () => checkForAppUpdate("focus"));
-    document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) checkForAppUpdate("visibility");
-    });
+    updateCheckInterval = setInterval(checkForAppUpdate, VERSION_CHECK_INTERVAL);
 }
 
 
@@ -459,6 +407,93 @@ function getCheckoutDateOnly(dateStr) {
     return dateStr || "TBD";
 }
 
+function getHotelCheckoutInfo(p) {
+    if (!p || p.currentService !== "Hotel" || !Array.isArray(p.history)) return null;
+    for (let i = p.history.length - 1; i >= 0; i--) {
+        const h = p.history[i];
+        if (!h?.service || !String(h.service).startsWith("Hotel Check-out - ")) continue;
+        const dateMs = parseDisplayDateToLocalDayStartMs(h.date || "");
+        if (!dateMs) continue;
+        return {
+            date: h.date || "",
+            dateMs,
+            package: String(h.service).replace("Hotel Check-out - ", "").trim() || "No Package"
+        };
+    }
+    return null;
+}
+
+function formatReminderDate(dateMs) {
+    const d = new Date(dateMs);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const year = String(d.getFullYear()).slice(-2);
+    return `${month}/${day}/${year}`;
+}
+
+function formatCheckoutCountdown(dateMs) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const diffDays = Math.round((dateMs - todayStart) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return `Check-out overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"}`;
+    if (diffDays === 0) return "Check-out today";
+    if (diffDays === 1) return "Check-out in 1 day";
+    return `Check-out in ${diffDays} days`;
+}
+
+function openCheckoutReminder(id) {
+    closeModal();
+    setActiveSection("hotel");
+    setTimeout(() => viewPet(id), 10);
+}
+
+window.openCheckoutReminder = openCheckoutReminder;
+
+function renderCheckoutReminders() {
+    const container = document.getElementById("dashboardCheckoutReminders");
+    if (!container) return;
+
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const reminders = db.pets
+        .map((p) => {
+            const checkout = getHotelCheckoutInfo(p);
+            return checkout ? { pet: p, checkout } : null;
+        })
+        .filter(Boolean)
+        .filter(({ checkout }) => checkout.dateMs >= todayStart)
+        .sort((a, b) => a.checkout.dateMs - b.checkout.dateMs)
+        .slice(0, 8);
+
+    if (!reminders.length) {
+        container.innerHTML = "";
+        return;
+    }
+
+    container.innerHTML = `
+    <div class="card reminder-panel">
+        <div class="reminder-header">
+            <div class="reminder-title">HOTEL CHECK-OUT REMINDERS</div>
+            <div class="reminder-count">${reminders.length} UPCOMING</div>
+        </div>
+        <div class="reminder-list">
+            ${reminders.map(({ pet, checkout }) => `
+                <button class="reminder-item" type="button" onclick="openCheckoutReminder('${pet.id}')">
+                    <div>
+                        <div class="reminder-name">${pet.name || "Unnamed"}</div>
+                        <div class="reminder-meta">
+                            Check-out on ${formatReminderDate(checkout.dateMs)}<br>
+                            Package: ${checkout.package}
+                        </div>
+                    </div>
+                    <div class="reminder-countdown">${formatCheckoutCountdown(checkout.dateMs)}</div>
+                </button>
+            `).join("")}
+        </div>
+    </div>
+    `;
+}
+
 function getPackageOptions(selected = "") {
     return ["N/A","Sham-paw","Shorty Coat Paws","VIPAWS","Giant Poodles","Premium Wash","Premium Wash Cats","Catlux","Other"]
         .map(pkg => `<option ${selected === pkg ? "selected" : ""}>${pkg}</option>`)
@@ -609,6 +644,7 @@ const groomTodayEl = document.getElementById("statGroomToday");
 const hotelTodayEl = document.getElementById("statHotelToday");
 if (groomTodayEl) groomTodayEl.textContent = db.pets.filter(p => p.currentService==="Grooming" && isToday(getLatestServiceTimestamp(p))).length;
 if (hotelTodayEl) hotelTodayEl.textContent = db.pets.filter(p => p.currentService==="Hotel" && isToday(getLatestServiceTimestamp(p))).length;
+renderCheckoutReminders();
 renderPets();
 renderGroom();
 renderHotel();
@@ -1330,4 +1366,3 @@ syncSidebarVersion();
 render();
 updateBackupStatus();
 appReadyForSaveNotifications = true;
-document.addEventListener("keydown", blockManualRefresh, true);
