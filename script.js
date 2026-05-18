@@ -4,6 +4,7 @@ let autoSaveInterval;
 let saveNotificationTimer;
 let updateCheckInterval;
 let appReadyForSaveNotifications = false;
+const LAST_SEEN_VERSION_KEY = "tyk_last_seen_app_version";
 
 function getBackupFilename(prefix) {
     const now = new Date();
@@ -131,6 +132,22 @@ function showUpdateAction(remoteVersion) {
     `;
 }
 
+function getVersionCheckUrl() {
+    const url = new URL("index.html", window.location.href);
+    url.searchParams.set("__versionCheck", String(Date.now()));
+    return url.toString();
+}
+
+function getRemoteAppVersion(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const metaVersion = doc.querySelector('meta[name="app-version"]')?.content?.trim();
+    if (metaVersion) return metaVersion;
+
+    const sidebarVersion = doc.querySelector(".sidebar-version")?.textContent || "";
+    const match = sidebarVersion.match(/version\s*([0-9]+(?:\.[0-9]+)*)/i);
+    return match ? match[1].trim() : "";
+}
+
 function exportBackupForUpdate() {
     saveDB();
     downloadBackup(getBackupFilename("team-yabee-update-backup"), buildBackupData());
@@ -143,35 +160,24 @@ function exportBackupForUpdate() {
 function reloadAppForUpdate() {
     exportBackupForUpdate();
     showSaveNotification("Backup exported. Updating app...");
-    setTimeout(() => location.reload(), 1200);
+    setTimeout(() => {
+        const reloadUrl = new URL(window.location.href);
+        reloadUrl.searchParams.set("__updated", String(Date.now()));
+        window.location.replace(reloadUrl.toString());
+    }, 1200);
 }
 
 window.reloadAppForUpdate = reloadAppForUpdate;
 
 async function checkForAppUpdate() {
     const currentVersion = APP_VERSION;
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set("__versionCheck", String(Date.now()));
 
     try {
-        const res = await fetch(currentUrl.toString(), { cache: "no-store" });
+        const res = await fetch(getVersionCheckUrl(), { cache: "no-store" });
         if (!res.ok) return;
 
         const html = await res.text();
-        const lines = html.split("\n");
-        const metaLine = lines.find((line) => line.includes('name="app-version"'));
-        const versionLine = metaLine || lines.find((line) => line.includes('class="sidebar-version"'));
-        if (!versionLine) return;
-
-        let remoteVersion = "";
-        if (versionLine.includes('name="app-version"')) {
-            const parts = versionLine.split('content="');
-            remoteVersion = parts[1] ? parts[1].split('"')[0].trim() : "";
-        } else {
-            const parts = versionLine.split(">Version ");
-            remoteVersion = parts[1] ? parts[1].split("<")[0].trim() : "";
-        }
-
+        const remoteVersion = getRemoteAppVersion(html);
         if (!remoteVersion) return;
         if (compareVersions(remoteVersion, currentVersion) > 0) {
             showUpdateAction(remoteVersion);
