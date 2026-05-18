@@ -184,6 +184,10 @@ function startUpdateWatcher() {
     checkForAppUpdate();
     if (updateCheckInterval) clearInterval(updateCheckInterval);
     updateCheckInterval = setInterval(checkForAppUpdate, VERSION_CHECK_INTERVAL);
+    window.addEventListener("focus", checkForAppUpdate);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) checkForAppUpdate();
+    });
 }
 
 
